@@ -1,12 +1,15 @@
 """
-Utility for training and deploying a house price prediction model.
+Utility for training and evaluating a linear regression model for house price prediction
+and launching a GUI for making predictions.
 
-This script loads data from a CSV file, preprocesses the data, trains a
-linear regression model, evaluates the model, saves the model, and
-launches a GUI for making predictions.
+This script trains a linear regression model using preprocessed data from the
+'house_data.csv' file, evaluates the model, saves it to a file, and launches a
+GUI for making predictions.
 
 """
+
 import pandas as pd
+import numpy as np
 from src.data_preprocessing import DataPreprocessor
 from src.model import HousePriceModel
 from src.gui import PredictionGUI
@@ -14,14 +17,16 @@ from src.gui import PredictionGUI
 
 def main():
     """
-    Main entry point of the script.
-
+    Main entry point for the script.
     """
     # Load data
     df = pd.read_csv('data/house_data.csv')
     
     # Initialize preprocessor
     preprocessor = DataPreprocessor()
+    
+    # Get feature columns (excluding target variable)
+    feature_columns = [col for col in df.columns if col != 'SalePrice']
     
     # Preprocess data
     processed_df = preprocessor.preprocess(df)
@@ -42,8 +47,8 @@ def main():
     # Save model
     model.save_model('models/linear_regression_model.pkl')
     
-    # Launch GUI
-    gui = PredictionGUI(model, preprocessor)
+    # Launch GUI with all feature columns
+    gui = PredictionGUI(model, preprocessor, feature_columns)
     gui.run()
 
 

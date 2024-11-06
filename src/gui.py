@@ -1,106 +1,150 @@
 """
-Utility for generating a GUI for making predictions with a trained model.
+GUI for House Price Prediction
 
-This module defines a class, PredictionGUI, which generates a GUI for making
-predictions with a trained model. The GUI has input fields for the features of
-the dataset, a predict button, and a label to display the result.
+This module provides a graphical user interface for predicting house prices
+using a trained machine learning model. Users can input feature values and
+get predictions on house prices.
 
-The class has methods to create the input fields, button, and label, to make
-predictions when the button is clicked, and to run the GUI event loop.
-
+Classes:
+    PredictionGUI: A class for creating and managing the prediction GUI.
 """
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 import pandas as pd
-import joblib
-
+import numpy as np
 
 class PredictionGUI:
     """
-    A class for generating a GUI for making predictions with a trained model.
-
-    This class generates a GUI with input fields for the features of the
-    dataset, a predict button, and a label to display the result.
+    A class for creating and managing the prediction GUI.
 
     Attributes:
-        window (tkinter.Tk): The main window of the GUI.
-        model (HousePriceModel): The trained model to make predictions with.
-        preprocessor (DataPreprocessor): The preprocessor to preprocess the
-            input data.
+        model: The trained prediction model.
+        preprocessor: The preprocessor for input data.
+        feature_columns: List of feature column names.
     """
 
-    def __init__(self, model, preprocessor):
+    def __init__(self, model, preprocessor, feature_columns):
         """
         Initializes the PredictionGUI instance.
 
         Parameters:
-            model (HousePriceModel): The trained model to make predictions with.
-            preprocessor (DataPreprocessor): The preprocessor to preprocess the
-                input data.
+            model: The trained prediction model.
+            preprocessor: The preprocessor for input data.
+            feature_columns: List of feature column names.
         """
         self.window = tk.Tk()
         self.window.title("House Price Prediction")
-        self.window.geometry("600x400")
+        self.window.geometry("800x600")
         
         self.model = model
         self.preprocessor = preprocessor
+        self.feature_columns = feature_columns
         
+        # Create main frame with scrollbar
+        self.main_frame = ttk.Frame(self.window)
+        self.main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Add canvas and scrollbar
+        self.canvas = tk.Canvas(self.main_frame)
+        self.scrollbar = ttk.Scrollbar(self.main_frame, orient="vertical", command=self.canvas.yview)
+        self.scrollable_frame = ttk.Frame(self.canvas)
+        
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        )
+        
+        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        
+        # Pack scrollbar components
+        self.scrollbar.pack(side="right", fill="y")
+        self.canvas.pack(side="left", fill="both", expand=True)
+        
+        self.entries = {}
         self.create_widgets()
         
     def create_widgets(self):
-        """
-        Creates the input fields, button, and label for the GUI.
-        """
-        # Create input fields
-        ttk.Label(self.window, text="Square Footage:").grid(row=0, column=0, padx=5, pady=5)
-        self.sq_footage = ttk.Entry(self.window)
-        self.sq_footage.grid(row=0, column=1, padx=5, pady=5)
-        
-        ttk.Label(self.window, text="Number of Bedrooms:").grid(row=1, column=0, padx=5, pady=5)
-        self.bedrooms = ttk.Entry(self.window)
-        self.bedrooms.grid(row=1, column=1, padx=5, pady=5)
-        
-        ttk.Label(self.window, text="Number of Bathrooms:").grid(row=2, column=0, padx=5, pady=5)
-        self.bathrooms = ttk.Entry(self.window)
-        self.bathrooms.grid(row=2, column=1, padx=5, pady=5)
+        """Creates input fields and buttons for each feature."""
+        # Create input fields for each feature
+        for i, feature in enumerate(self.feature_columns):
+            ttk.Label(self.scrollable_frame, text=f"{feature}:").grid(row=i, column=0, padx=5, pady=5)
+            self.entries[feature] = ttk.Entry(self.scrollable_frame)
+            self.entries[feature].grid(row=i, column=1, padx=5, pady=5)
+            
+            # Add a default value button for each entry
+            ttk.Button(
+                self.scrollable_frame, 
+                text="Default", 
+                command=lambda f=feature: self.set_default(f)
+            ).grid(row=i, column=2, padx=5, pady=5)
         
         # Predict button
-        ttk.Button(self.window, text="Predict Price", command=self.predict).grid(row=3, column=0, columnspan=2, pady=20)
+        ttk.Button(
+            self.scrollable_frame, 
+            text="Predict Price", 
+            command=self.predict
+        ).grid(row=len(self.feature_columns), column=0, columnspan=3, pady=20)
         
         # Result label
-        self.result_label = ttk.Label(self.window, text="")
-        self.result_label.grid(row=4, column=0, columnspan=2, pady=10)
+        self.result_label = ttk.Label(self.scrollable_frame, text="")
+        self.result_label.grid(row=len(self.feature_columns)+1, column=0, columnspan=3, pady=10)
+    
+    def set_default(self, feature):
+        """Set default values for each feature."""
+        defaults = {
+            'GrLivArea': '1500',
+            'BedroomAbvGr': '3',
+            'FullBath': '2',
+            # Add reasonable defaults for other features
+        }
         
+        # If we don't have a specific default, use '0'
+        self.entries[feature].delete(0, tk.END)
+        self.entries[feature].insert(0, defaults.get(feature, '0'))
+    
     def predict(self):
-        """
-        Makes a prediction when the predict button is clicked.
-
-        This method creates a sample dataframe with the input values, preprocesses
-        the input, makes a prediction, and displays the result.
-        """
+        """Predicts house price based on user input and displays the result."""
         try:
-            # Create a sample dataframe with the input values
-            input_data = pd.DataFrame({
-                'GrLivArea': [float(self.sq_footage.get())],
-                'BedroomAbvGr': [int(self.bedrooms.get())],
-                'FullBath': [int(self.bathrooms.get())]
-            })
+            # Create a dictionary to store the input values
+            input_data = {}
+            
+            # Get values from entries
+            for feature in self.feature_columns:
+                value = self.entries[feature].get()
+                # Try to convert to float, if fails, keep as string
+                try:
+                    input_data[feature] = float(value)
+                except ValueError:
+                    input_data[feature] = value
+            
+            # Create a dataframe with a single row
+            input_df = pd.DataFrame([input_data])
+            
+            # Ensure all required columns are present
+            for col in self.feature_columns:
+                if col not in input_df.columns:
+                    input_df[col] = 0
+            
+            # Reorder columns to match training data
+            input_df = input_df[self.feature_columns]
             
             # Preprocess the input
-            processed_input = self.preprocessor.preprocess(input_data)
+            processed_input = self.preprocessor.preprocess(input_df)
             
             # Make prediction
             prediction = self.model.predict(processed_input)[0]
             
             # Display result
-            self.result_label.config(text=f"Predicted House Price: ${prediction:,.2f}")
+            self.result_label.config(
+                text=f"Predicted House Price: ${prediction:,.2f}",
+                font=('Arial', 12, 'bold')
+            )
             
-        except ValueError:
-            self.result_label.config(text="Please enter valid numbers")
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred: {str(e)}\nPlease check your inputs.")
     
     def run(self):
-        """
-        Runs the GUI event loop.
-        """
+        """Runs the Tkinter main loop to start the GUI."""
         self.window.mainloop()
