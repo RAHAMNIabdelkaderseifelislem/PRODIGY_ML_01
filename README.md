@@ -32,7 +32,7 @@ house_price_prediction/
 
 ### 1. Clone & Conquer
 ```bash
-git clone [your-repo-link]
+git clone https://github.com/RAHAMNIabdelkaderseifelislem/PRODIGY_ML_01.git
 cd house-price-prediction
 ```
 
