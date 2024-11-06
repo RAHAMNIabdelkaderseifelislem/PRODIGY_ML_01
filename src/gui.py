@@ -1,173 +1,138 @@
 """
-Utility for generating a GUI for house price prediction using a trained model.
+A GUI for making house price predictions using a trained model.
 
-This module provides a class for creating a GUI that allows users to input
-features of a house and predict its price using a trained model.
-
-Classes:
-    PredictionGUI: A class for creating a GUI for house price prediction.
-
+This module provides a class `PredictionGUI` that creates a GUI for making
+house price predictions using a trained model. The GUI has input fields for
+entering the features of a house, a button for making a prediction, and a
+label for displaying the predicted price.
 """
+
 import tkinter as tk
 from tkinter import ttk, messagebox
 import pandas as pd
-import numpy as np
-import math
 
 
 class PredictionGUI:
     """
-    A class for creating a GUI for house price prediction.
+    A GUI for making house price predictions using a trained model.
 
     Attributes:
         window (tkinter.Tk): The main window of the GUI.
-        model (sklearn.linear_model.LinearRegression): The trained model for house price prediction.
-        preprocessor (DataPreprocessor): The preprocessor for the input data.
-        feature_columns (list): The list of feature columns used for prediction.
+        model (HousePriceModel): The trained model used for making predictions.
+        preprocessor (DataPreprocessor): The preprocessor used for preprocessing
+            the input data.
+        entries (dict): A dictionary of input fields, where each key is the
+            name of a feature and each value is the corresponding input field.
+        result_label (tkinter.Label): The label for displaying the predicted
+            price.
     """
-    def __init__(self, model, preprocessor, feature_columns):
+
+    def __init__(self, model, preprocessor):
         """
         Initializes the PredictionGUI instance.
 
         Parameters:
-            model (sklearn.linear_model.LinearRegression): The trained model for house price prediction.
-            preprocessor (DataPreprocessor): The preprocessor for the input data.
-            feature_columns (list): The list of feature columns used for prediction.
+            model (HousePriceModel): The trained model used for making predictions.
+            preprocessor (DataPreprocessor): The preprocessor used for preprocessing
+                the input data.
         """
         self.window = tk.Tk()
         self.window.title("House Price Prediction 🏠")
-        self.window.geometry("1200x800")
+        self.window.geometry("600x400")
 
         self.model = model
         self.preprocessor = preprocessor
-        self.feature_columns = feature_columns
 
-        # Create main frame with scrollbar
-        self.main_frame = ttk.Frame(self.window)
-        self.main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-
-        # Add canvas and scrollbar
-        self.canvas = tk.Canvas(self.main_frame)
-        self.scrollbar = ttk.Scrollbar(self.main_frame, orient="vertical", command=self.canvas.yview)
-        self.scrollable_frame = ttk.Frame(self.canvas)
-
-        self.scrollable_frame.bind(
-            "<Configure>",
-            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-        )
-
-        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
-        self.canvas.configure(yscrollcommand=self.scrollbar.set)
-
-        # Pack scrollbar components
-        self.scrollbar.pack(side="right", fill="y")
-        self.canvas.pack(side="left", fill="both", expand=True)
+        # Create main frame
+        self.main_frame = ttk.Frame(self.window, padding="20")
+        self.main_frame.pack(fill=tk.BOTH, expand=True)
 
         self.entries = {}
         self.create_widgets()
 
     def create_widgets(self):
         """
-        Creates all the widgets in the GUI.
+        Creates the input fields, buttons, and result label for the GUI.
         """
         # Title
         title_label = ttk.Label(
-            self.scrollable_frame, 
+            self.main_frame,
             text="House Price Prediction System",
             font=('Helvetica', 16, 'bold')
         )
-        title_label.grid(row=0, column=0, columnspan=10, pady=20)
+        title_label.grid(row=0, column=0, columnspan=2, pady=20)
 
-        # Calculate number of rows needed (5 columns)
-        NUM_COLUMNS = 5
-        num_rows = math.ceil(len(self.feature_columns) / NUM_COLUMNS)
+        # Input fields
+        self.create_input_field("Square Footage (GrLivArea)", "GrLivArea", 1)
+        self.create_input_field("Number of Bedrooms", "BedroomAbvGr", 2)
+        self.create_input_field("Number of Bathrooms", "FullBath", 3)
 
-        # Create input fields in a grid layout
-        for i, feature in enumerate(self.feature_columns):
-            row = (i // NUM_COLUMNS) + 1  # +1 because title is in row 0
-            col = (i % NUM_COLUMNS) * 2  # *2 because each feature takes 2 columns (label + entry)
-            
-            # Create a frame for each feature
-            frame = ttk.Frame(self.scrollable_frame)
-            frame.grid(row=row, column=col, columnspan=2, padx=5, pady=5, sticky="nsew")
-            
-            # Add label and entry to the frame
-            ttk.Label(frame, text=f"{feature}:").pack(anchor="w")
-            entry = ttk.Entry(frame, width=20)
-            entry.pack(fill="x", padx=2, pady=2)
-            self.entries[feature] = entry
+        # Buttons frame
+        button_frame = ttk.Frame(self.main_frame)
+        button_frame.grid(row=4, column=0, columnspan=2, pady=20)
 
-        # Control buttons frame
-        button_frame = ttk.Frame(self.scrollable_frame)
-        button_frame.grid(row=num_rows+1, column=0, columnspan=10, pady=20)
-
-        # Add Fill Default Values button
+        # Add buttons
         ttk.Button(
             button_frame,
             text="Fill Default Values",
-            command=self.fill_default_values,
-            style='Accent.TButton'
+            command=self.fill_default_values
         ).pack(side=tk.LEFT, padx=5)
 
-        # Add Predict button
         ttk.Button(
             button_frame,
             text="Predict Price 🎯",
-            command=self.predict,
-            style='Accent.TButton'
+            command=self.predict
         ).pack(side=tk.LEFT, padx=5)
 
-        # Add Clear button
         ttk.Button(
             button_frame,
             text="Clear All ❌",
-            command=self.clear_all,
-            style='Accent.TButton'
+            command=self.clear_all
         ).pack(side=tk.LEFT, padx=5)
 
-        # Result label with custom styling
+        # Result label
         self.result_label = ttk.Label(
-            self.scrollable_frame, 
+            self.main_frame,
             text="",
             font=('Helvetica', 12, 'bold')
         )
-        self.result_label.grid(row=num_rows+2, column=0, columnspan=10, pady=20)
+        self.result_label.grid(row=5, column=0, columnspan=2, pady=20)
+
+    def create_input_field(self, label_text, field_name, row):
+        """
+        Creates a frame for each input field.
+
+        Parameters:
+            label_text (str): The text for the label of the input field.
+            field_name (str): The name of the feature for the input field.
+            row (int): The row number for the input field in the grid layout.
+        """
+        # Create frame for each input field
+        frame = ttk.Frame(self.main_frame)
+        frame.grid(row=row, column=0, columnspan=2, pady=5, sticky="ew")
+
+        # Add label
+        ttk.Label(frame, text=label_text).pack(anchor="w")
+
+        # Add entry
+        entry = ttk.Entry(frame, width=30)
+        entry.pack(fill="x", padx=2, pady=2)
+        self.entries[field_name] = entry
 
     def fill_default_values(self):
         """
         Fills all entries with default values.
         """
         default_values = {
-            # Numerical features
             'GrLivArea': '1500',
             'BedroomAbvGr': '3',
-            'FullBath': '2',
-            'GarageArea': '400',
-            'GarageCars': '2',
-            'TotalBsmtSF': '1000',
-            'WoodDeckSF': '100',
-            'OpenPorchSF': '50',
-            'LotArea': '8000',
-            # Categorical features
-            'GarageType': '1',
-            'GarageFinish': '1',
-            'GarageQual': '1',
-            'GarageCond': '1',
-            'PavedDrive': '1',
-            'Fence': '1',
-            'FireplaceQu': '1',
-            'PoolQC': '1',
-            'SaleType': '1',
-            'SaleCondition': '1'
+            'FullBath': '2'
         }
-        
-        # Clear all entries first
+
         self.clear_all()
-        
-        # Fill with default values
-        for feature in self.feature_columns:
-            self.entries[feature].insert(0, default_values.get(feature, '0'))
-            
+        for field, value in default_values.items():
+            self.entries[field].insert(0, value)
+
         messagebox.showinfo("Success", "Default values have been filled!")
 
     def clear_all(self):
@@ -176,33 +141,21 @@ class PredictionGUI:
         """
         for entry in self.entries.values():
             entry.delete(0, tk.END)
-    
+
     def predict(self):
         """
-        Makes a prediction using the input values and displays the result.
+        Makes a prediction using the trained model.
         """
         try:
-            # Create a dictionary to store the input values
-            input_data = {}
-
             # Get values from entries
-            for feature in self.feature_columns:
-                value = self.entries[feature].get()
-                try:
-                    input_data[feature] = float(value)
-                except ValueError:
-                    input_data[feature] = value
+            input_data = {
+                'GrLivArea': float(self.entries['GrLivArea'].get()),
+                'BedroomAbvGr': float(self.entries['BedroomAbvGr'].get()),
+                'FullBath': float(self.entries['FullBath'].get())
+            }
 
             # Create a dataframe with a single row
             input_df = pd.DataFrame([input_data])
-
-            # Ensure all required columns are present
-            for col in self.feature_columns:
-                if col not in input_df.columns:
-                    input_df[col] = 0
-
-            # Reorder columns to match training data
-            input_df = input_df[self.feature_columns]
 
             # Preprocess the input
             processed_input = self.preprocessor.preprocess(input_df)
@@ -217,8 +170,10 @@ class PredictionGUI:
                 foreground='green'
             )
 
+        except ValueError:
+            messagebox.showerror("Error", "Please enter valid numbers for all fields.")
         except Exception as e:
-            messagebox.showerror("Error", f"An error occurred: {str(e)}\nPlease check your inputs.")
+            messagebox.showerror("Error", f"An error occurred: {str(e)}")
 
     def run(self):
         """
@@ -231,5 +186,5 @@ class PredictionGUI:
         x = (self.window.winfo_screenwidth() // 2) - (width // 2)
         y = (self.window.winfo_screenheight() // 2) - (height // 2)
         self.window.geometry(f'{width}x{height}+{x}+{y}')
-        
+
         self.window.mainloop()

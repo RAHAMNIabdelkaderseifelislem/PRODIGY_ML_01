@@ -1,15 +1,13 @@
 """
-Utility for training and evaluating a linear regression model for house price prediction
-and launching a GUI for making predictions.
+Utility script for training and evaluating a house price prediction model.
 
-This script trains a linear regression model using preprocessed data from the
-'house_data.csv' file, evaluates the model, saves it to a file, and launches a
-GUI for making predictions.
+This script loads a dataset of house prices, preprocesses the data, trains a
+linear regression model, evaluates its performance, saves the model to a file,
+and launches a GUI for making predictions.
 
 """
 
 import pandas as pd
-import numpy as np
 from src.data_preprocessing import DataPreprocessor
 from src.model import HousePriceModel
 from src.gui import PredictionGUI
@@ -18,15 +16,16 @@ from src.gui import PredictionGUI
 def main():
     """
     Main entry point for the script.
+
+    This function loads a dataset of house prices, preprocesses the data, trains
+    a linear regression model, evaluates its performance, saves the model to a
+    file, and launches a GUI for making predictions.
     """
     # Load data
     df = pd.read_csv('data/house_data.csv')
     
     # Initialize preprocessor
     preprocessor = DataPreprocessor()
-    
-    # Get feature columns (excluding target variable)
-    feature_columns = [col for col in df.columns if col != 'SalePrice']
     
     # Preprocess data
     processed_df = preprocessor.preprocess(df)
@@ -40,15 +39,17 @@ def main():
     
     # Evaluate model
     metrics = model.evaluate(X_test, y_test)
-    print("Model Performance:")
+    print("\nModel Performance:")
+    print("-----------------")
     for metric, value in metrics.items():
-        print(f"{metric}: {value}")
+        print(f"{metric}: {value:.4f}")
     
     # Save model
     model.save_model('models/linear_regression_model.pkl')
     
-    # Launch GUI with all feature columns
-    gui = PredictionGUI(model, preprocessor, feature_columns)
+    # Launch GUI
+    print("\nLaunching GUI...")
+    gui = PredictionGUI(model, preprocessor)
     gui.run()
 
 

@@ -1,86 +1,64 @@
 """
-Data Preprocessing Utilities
+Data Preprocessing Module
 
-This module contains utilities for preprocessing datasets.
+This module provides functionality for preprocessing house data for model training.
+It handles feature selection, missing value imputation, and feature scaling.
 
 Classes:
-    DataPreprocessor: A class for preprocessing datasets.
-
+    DataPreprocessor: A class for preprocessing data, including scaling and splitting datasets.
 """
+
 import pandas as pd
-from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 
-
 class DataPreprocessor:
-    """
-    A class for preprocessing datasets.
-
-    Attributes:
-        label_encoders (dict): A dictionary of LabelEncoder instances
-            used for encoding categorical variables.
-        scaler (StandardScaler): A StandardScaler instance used for
-            scaling numerical features.
-    """
+    """A class to preprocess house data for training a regression model."""
 
     def __init__(self):
-        """
-        Initializes the DataPreprocessor instance.
-        """
-        self.label_encoders = {}
+        """Initializes the DataPreprocessor with a StandardScaler."""
         self.scaler = StandardScaler()
-
+        
     def preprocess(self, df):
         """
-        Preprocesses a given dataset.
-
-        This method handles missing values, encodes categorical variables
-        and scales numerical features.
+        Preprocesses the input DataFrame by selecting features, handling missing values, and scaling.
 
         Parameters:
-            df (pandas.DataFrame): The dataset to be preprocessed.
+            df (pandas.DataFrame): The input DataFrame containing house data.
 
         Returns:
-            pandas.DataFrame: The preprocessed dataset.
+            pandas.DataFrame: The processed DataFrame with selected and scaled features.
         """
-        # Handle missing values
-        df = df.fillna(0)
-
-        # Convert categorical variables
-        categorical_columns = df.select_dtypes(include=['object']).columns
-        for column in categorical_columns:
-            if column not in self.label_encoders:
-                self.label_encoders[column] = LabelEncoder()
-            df[column] = self.label_encoders[column].fit_transform(df[column].astype(str))
-
-        # Scale numerical features
-        numerical_columns = df.select_dtypes(include=['int64', 'float64']).columns
-        df[numerical_columns] = self.scaler.fit_transform(df[numerical_columns])
-
-        return df
-
-    def prepare_data(self, df, target_column='SalePrice'):
+        # Select only the required features
+        required_features = ['GrLivArea', 'BedroomAbvGr', 'FullBath']
+        
+        # Create a copy of input data with only required features
+        if 'SalePrice' in df.columns:
+            processed_df = df[required_features + ['SalePrice']].copy()
+        else:
+            processed_df = df[required_features].copy()
+        
+        # Handle missing values if any
+        processed_df = processed_df.fillna(0)
+        
+        # Scale the features
+        processed_df[required_features] = self.scaler.fit_transform(processed_df[required_features])
+        
+        return processed_df
+    
+    def prepare_data(self, df):
         """
-        Prepares a dataset for training.
-
-        This method separates features and target, and splits the data into
-        training and testing sets.
+        Prepares the training and testing datasets from the input DataFrame.
 
         Parameters:
-            df (pandas.DataFrame): The dataset to be prepared.
-            target_column (str): The column name of the target variable.
+            df (pandas.DataFrame): The preprocessed DataFrame containing features and target.
 
         Returns:
-            tuple: A tuple containing the training features, testing features,
-                training target and testing target.
+            tuple: A tuple containing the split datasets: (X_train, X_test, y_train, y_test).
         """
-        # Separate features and target
-        X = df.drop(target_column, axis=1)
-        y = df[target_column]
-
-        # Split the data
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42
-        )
-
-        return X_train, X_test, y_train, y_test
+        # Extract features and target variable
+        X = df[['GrLivArea', 'BedroomAbvGr', 'FullBath']]
+        y = df['SalePrice']
+        
+        # Split data into training and test sets
+        return train_test_split(X, y, test_size=0.2, random_state=42)
